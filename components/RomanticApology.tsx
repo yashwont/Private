@@ -1,7 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  Dispatch,
+  MutableRefObject,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore
+} from "react";
 import { AnimatePresence, motion, useScroll, useTransform } from "framer-motion";
 import { ChevronLeft, ChevronRight, Music2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { apology } from "@/data/apology";
@@ -117,11 +126,17 @@ function FloralOpening({ onEnter }: { onEnter: () => void }) {
   );
 }
 
-function AmbientMusic() {
+function AmbientMusic({
+  visible,
+  startRef
+}: {
+  visible: boolean;
+  startRef: MutableRefObject<() => void>;
+}) {
   const playerRef = useRef<HTMLIFrameElement | null>(null);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
-  const youtubeSrc = `https://www.youtube.com/embed/${apology.youtubeMusicId}?autoplay=1&loop=1&playlist=${apology.youtubeMusicId}&playsinline=1&controls=0&disablekb=1&modestbranding=1&rel=0&enablejsapi=1`;
+  const youtubeSrc = `https://www.youtube.com/embed/${apology.youtubeMusicId}?autoplay=0&loop=1&playlist=${apology.youtubeMusicId}&playsinline=1&controls=0&disablekb=1&modestbranding=1&rel=0&enablejsapi=1`;
 
   const sendCommand = (func: "playVideo" | "pauseVideo" | "mute" | "unMute") => {
     playerRef.current?.contentWindow?.postMessage(
@@ -140,8 +155,25 @@ function AmbientMusic() {
     setMuted((value) => !value);
   };
 
+  useEffect(() => {
+    startRef.current = () => {
+      sendCommand("unMute");
+      sendCommand("playVideo");
+      setMuted(false);
+      setPlaying(true);
+    };
+
+    return () => {
+      startRef.current = () => {};
+    };
+  }, [startRef]);
+
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-white/55 bg-ivory/85 px-2 py-2 shadow-soft backdrop-blur-md">
+    <div
+      className={`fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-white/55 bg-ivory/85 px-2 py-2 shadow-soft backdrop-blur-md transition duration-300 ${
+        visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
+      }`}
+    >
       <iframe
         ref={playerRef}
         title="Background music"
@@ -456,6 +488,7 @@ export default function RomanticApology() {
   const [opened, setOpened] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [finalModalOpen, setFinalModalOpen] = useState(false);
+  const startMusicRef = useRef<() => void>(() => {});
   const reducedMotion = useStableReducedMotion();
   const { scrollY } = useScroll();
   const heroY = useTransform(scrollY, [0, 900], reducedMotion ? [0, 0] : [0, 120]);
@@ -494,6 +527,7 @@ export default function RomanticApology() {
   );
 
   const enter = () => {
+    startMusicRef.current();
     setOpened(true);
     window.setTimeout(() => scrollToId("hero"), 180);
   };
@@ -516,7 +550,7 @@ export default function RomanticApology() {
         {!opened ? <FloralOpening onEnter={enter} /> : null}
       </AnimatePresence>
 
-      {opened ? <AmbientMusic /> : null}
+      <AmbientMusic visible={opened} startRef={startMusicRef} />
 
       <section id="hero" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-ivory via-[#fff3df] to-[#f3d4ad] text-cocoa">
         <motion.div
