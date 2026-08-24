@@ -28,7 +28,11 @@ body {
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
-  background: var(--ivory);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.78), transparent 30%),
+    radial-gradient(circle at 82% 12%, rgba(246, 200, 75, 0.22), transparent 34%),
+    radial-gradient(circle at 70% 78%, rgba(182, 106, 116, 0.18), transparent 36%),
+    var(--ivory);
   color: var(--cocoa);
   font-family: var(--font-sans), system-ui, sans-serif;
   text-rendering: optimizeLegibility;
@@ -68,6 +72,70 @@ a {
   box-shadow: 0 0 0 4px rgba(182, 106, 116, 0.34);
 }
 
+.glass-surface {
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(255, 248, 238, 0.28)),
+    rgba(255, 248, 238, 0.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 24px 70px rgba(59, 36, 32, 0.16);
+  backdrop-filter: blur(18px) saturate(1.18);
+  -webkit-backdrop-filter: blur(18px) saturate(1.18);
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(255, 248, 238, 0.32)),
+    rgba(255, 248, 238, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 18px 45px rgba(59, 36, 32, 0.18);
+  backdrop-filter: blur(16px) saturate(1.16);
+  -webkit-backdrop-filter: blur(16px) saturate(1.16);
+}
+
+.image-float {
+  animation: image-container-float 7.5s ease-in-out infinite;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.image-float-slow {
+  animation-duration: 9s;
+}
+
+.image-float-delay {
+  animation-delay: -2.4s;
+}
+
+.image-float-reverse {
+  animation-name: image-container-float-reverse;
+}
+
+@keyframes image-container-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+}
+
+@keyframes image-container-float-reverse {
+  0%,
+  100% {
+    transform: translate3d(0, -6px, 0);
+  }
+
+  50% {
+    transform: translate3d(0, 6px, 0);
+  }
+}
+
 .motion-paused *,
 .motion-paused *::before,
 .motion-paused *::after {
@@ -75,6 +143,14 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .image-float,
+  .image-float-slow,
+  .image-float-delay,
+  .image-float-reverse {
+    animation: none !important;
+    transform: none !important;
+  }
+
   *,
   *::before,
   *::after {

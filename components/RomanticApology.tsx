@@ -23,6 +23,42 @@ const fadeUp = {
 const softTransition = { duration: 0.75, ease: [0.22, 1, 0.36, 1] };
 const petalTransition = { duration: 8, repeat: Infinity, ease: "easeInOut" };
 
+type SunflowerConfig = {
+  id: string;
+  side: "left" | "right";
+  offset: string;
+  width: number;
+  height: number;
+  delay: number;
+  tilt: number;
+  sway: number;
+  duration: number;
+  className?: string;
+};
+
+const sunflowerPetals = Array.from({ length: 18 }, (_, index) => index * 20);
+
+const desktopSunflowers: SunflowerConfig[] = [
+  { id: "left-edge-tall", side: "left", offset: "-2.5rem", width: 210, height: 360, delay: 0, tilt: -8, sway: 2.2, duration: 7.8 },
+  { id: "left-mid", side: "left", offset: "7%", width: 150, height: 285, delay: 0.28, tilt: 5, sway: -1.8, duration: 8.6 },
+  { id: "left-low", side: "left", offset: "17%", width: 118, height: 225, delay: 0.62, tilt: -2, sway: 1.5, duration: 7.2 },
+  { id: "right-edge-tall", side: "right", offset: "-3.5rem", width: 230, height: 390, delay: 0.16, tilt: 8, sway: -2.3, duration: 8.2 },
+  { id: "right-mid", side: "right", offset: "8%", width: 165, height: 305, delay: 0.46, tilt: -4, sway: 1.7, duration: 7.6 },
+  { id: "right-low", side: "right", offset: "20%", width: 120, height: 235, delay: 0.88, tilt: 3, sway: -1.4, duration: 8.9 },
+  { id: "far-left-depth", side: "left", offset: "-5.5rem", width: 150, height: 260, delay: 0.78, tilt: 11, sway: 1.2, duration: 9.1 }
+];
+
+const mobileSunflowers: SunflowerConfig[] = [
+  { id: "mobile-left", side: "left", offset: "1.25rem", width: 106, height: 198, delay: 0.05, tilt: -3, sway: 1.1, duration: 8.4 },
+  { id: "mobile-left-small", side: "left", offset: "18%", width: 78, height: 148, delay: 0.48, tilt: 5, sway: -1, duration: 7.6 },
+  { id: "mobile-right", side: "right", offset: "2rem", width: 110, height: 204, delay: 0.24, tilt: 3, sway: -1.1, duration: 8 },
+  { id: "mobile-right-small", side: "right", offset: "26%", width: 72, height: 140, delay: 0.76, tilt: -3, sway: 0.85, duration: 8.8 }
+];
+
+function getMotionSeed(value: string) {
+  return Array.from(value).reduce((sum, letter) => sum + letter.charCodeAt(0), 0);
+}
+
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -57,27 +93,191 @@ function SectionTitle({ eyebrow, title }: { eyebrow?: string; title: string }) {
 }
 
 function PhotoImage({ src, alt, priority = false }: { src: string; alt: string; priority?: boolean }) {
+  const reducedMotion = useStableReducedMotion();
+  const seed = useMemo(() => getMotionSeed(src), [src]);
+  const drift = 3 + (seed % 4);
+  const rotation = 0.28 + (seed % 3) * 0.12;
+  const duration = 8 + (seed % 5);
+  const delay = (seed % 7) * 0.18;
+
   return (
     <>
-      <Image
-        src={src}
-        alt=""
-        fill
-        priority={priority}
-        sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 620px"
-        className="scale-105 object-cover opacity-[0.22] blur-md saturate-90"
+      <motion.div
+        className="absolute inset-0 scale-105"
         aria-hidden="true"
-      />
+        animate={
+          reducedMotion
+            ? undefined
+            : {
+                scale: [1.05, 1.08, 1.05],
+                x: [-drift, drift, -drift],
+                y: [drift, -drift, drift]
+              }
+        }
+        transition={{ duration: duration + 2, repeat: Infinity, ease: "easeInOut", delay }}
+      >
+        <Image
+          src={src}
+          alt=""
+          fill
+          priority={priority}
+          sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 620px"
+          className="object-cover opacity-[0.22] blur-md saturate-90"
+        />
+      </motion.div>
       <div aria-hidden="true" className="absolute inset-0 bg-ivory/18" />
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        priority={priority}
-        sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 620px"
-        className="object-contain p-1"
-      />
+      <motion.div
+        className="absolute inset-0"
+        animate={
+          reducedMotion
+            ? undefined
+            : {
+                scale: [1, 1.018, 1],
+                rotate: [-rotation, rotation, -rotation],
+                y: [0, -drift, 0]
+              }
+        }
+        transition={{ duration, repeat: Infinity, ease: "easeInOut", delay }}
+      >
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          priority={priority}
+          sizes="(max-width: 768px) 92vw, (max-width: 1200px) 45vw, 620px"
+          className="object-contain p-1"
+        />
+      </motion.div>
     </>
+  );
+}
+
+function Sunflower({ flower, reducedMotion }: { flower: SunflowerConfig; reducedMotion: boolean }) {
+  const sideStyle = flower.side === "left" ? { left: flower.offset } : { right: flower.offset };
+  const settledRotation = reducedMotion ? flower.tilt : [flower.tilt, flower.tilt + flower.sway, flower.tilt - flower.sway * 0.7, flower.tilt];
+  const stemTransition = reducedMotion ? { duration: 0 } : { duration: 1, delay: flower.delay, ease: [0.22, 1, 0.36, 1] };
+  const leafTransition = reducedMotion ? { duration: 0 } : { duration: 0.55, delay: flower.delay + 0.9, ease: [0.22, 1, 0.36, 1] };
+  const headTransition = reducedMotion ? { duration: 0 } : { duration: 0.45, delay: flower.delay + 1.34, ease: [0.22, 1, 0.36, 1] };
+
+  return (
+    <motion.div
+      className={`absolute bottom-[-0.5rem] origin-bottom ${flower.className ?? ""}`}
+      style={{ ...sideStyle, width: flower.width, height: flower.height, transformOrigin: "50% 100%" }}
+      initial={{ rotate: flower.tilt }}
+      animate={{ rotate: settledRotation }}
+      transition={
+        reducedMotion
+          ? { duration: 0 }
+          : { duration: flower.duration, repeat: Infinity, ease: "easeInOut", delay: flower.delay + 2.7 }
+      }
+    >
+      <svg className="h-full w-full overflow-visible" viewBox="0 -56 160 336" fill="none" aria-hidden="true">
+        <motion.path
+          d="M80 276 C76 224 86 176 80 128 C75 92 82 66 84 46"
+          stroke="#6f7461"
+          strokeWidth="7"
+          strokeLinecap="round"
+          pathLength={1}
+          initial={{ pathLength: reducedMotion ? 1 : 0, opacity: reducedMotion ? 1 : 0.82 }}
+          animate={{ pathLength: 1, opacity: 1 }}
+          transition={stemTransition}
+        />
+        <motion.path
+          d="M77 186 C46 171 33 144 34 118 C61 124 80 144 82 174"
+          fill="#7b8068"
+          opacity="0.82"
+          initial={{ scale: reducedMotion ? 1 : 0, rotate: -18, opacity: reducedMotion ? 0.82 : 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 0.82 }}
+          transition={leafTransition}
+          style={{ transformBox: "fill-box", transformOrigin: "85% 75%" }}
+        />
+        <motion.path
+          d="M84 148 C113 136 130 112 128 88 C102 94 84 113 80 140"
+          fill="#70765f"
+          opacity="0.76"
+          initial={{ scale: reducedMotion ? 1 : 0, rotate: 18, opacity: reducedMotion ? 0.76 : 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 0.76 }}
+          transition={{ ...leafTransition, delay: reducedMotion ? 0 : flower.delay + 1.08 }}
+          style={{ transformBox: "fill-box", transformOrigin: "15% 75%" }}
+        />
+        <motion.g
+          initial={{ scale: reducedMotion ? 1 : 0.68, opacity: reducedMotion ? 1 : 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={headTransition}
+          style={{ transformBox: "fill-box", transformOrigin: "center" }}
+        >
+          <g transform="translate(84 46)">
+            {sunflowerPetals.map((angle, index) => (
+              <g key={angle} transform={`rotate(${angle})`}>
+                <motion.ellipse
+                  cx="0"
+                  cy="-28"
+                  rx="8.5"
+                  ry="21"
+                  fill={index % 2 ? "#f5c84b" : "#e5b83d"}
+                  initial={{ scale: reducedMotion ? 1 : 0, opacity: reducedMotion ? 0.96 : 0 }}
+                  animate={{ scale: 1, opacity: 0.96 }}
+                  transition={{
+                    duration: reducedMotion ? 0 : 0.42,
+                    delay: reducedMotion ? 0 : flower.delay + 1.55 + index * 0.035,
+                    ease: [0.22, 1, 0.36, 1]
+                  }}
+                  style={{ transformBox: "fill-box", transformOrigin: "50% 100%" }}
+                />
+              </g>
+            ))}
+            <circle r="21" fill="#6f1d2f" opacity="0.94" />
+            <circle r="14" fill="#3b2420" opacity="0.86" />
+            <circle cx="-5" cy="-5" r="3" fill="#8d5b4c" opacity="0.75" />
+            <circle cx="5" cy="4" r="2.5" fill="#8d5b4c" opacity="0.65" />
+          </g>
+        </motion.g>
+      </svg>
+    </motion.div>
+  );
+}
+
+function SunflowerGarden() {
+  const reducedMotion = useStableReducedMotion();
+  const pollen = useMemo(
+    () =>
+      Array.from({ length: 14 }, (_, index) => ({
+        left: `${7 + ((index * 17) % 86)}%`,
+        bottom: `${11 + ((index * 23) % 55)}%`,
+        delay: index * 0.2,
+        size: 3 + (index % 3)
+      })),
+    []
+  );
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+      <div className="absolute inset-x-0 bottom-0 h-[42vh] bg-gradient-to-t from-[#f4dba8]/30 to-transparent" />
+      <div className="hidden sm:block">
+        {desktopSunflowers.map((flower) => (
+          <Sunflower key={flower.id} flower={flower} reducedMotion={reducedMotion} />
+        ))}
+      </div>
+      <div className="sm:hidden">
+        {mobileSunflowers.map((flower) => (
+          <Sunflower key={flower.id} flower={flower} reducedMotion={reducedMotion} />
+        ))}
+      </div>
+      {pollen.map((particle, index) => (
+        <motion.span
+          key={`${particle.left}-${particle.bottom}`}
+          className="absolute rounded-full bg-[#f5c84b]/35 blur-[0.4px]"
+          style={{ left: particle.left, bottom: particle.bottom, width: particle.size, height: particle.size }}
+          initial={{ opacity: reducedMotion ? 0.26 : 0, scale: reducedMotion ? 1 : 0.7 }}
+          animate={
+            reducedMotion
+              ? { opacity: 0.26, scale: 1 }
+              : { y: [0, -18, 0], x: [0, index % 2 ? 10 : -8, 0], opacity: [0.08, 0.34, 0.08], scale: [0.75, 1, 0.75] }
+          }
+          transition={{ duration: 7 + (index % 4), repeat: reducedMotion ? 0 : Infinity, ease: "easeInOut", delay: particle.delay }}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -95,6 +295,7 @@ function FloralOpening({ onEnter }: { onEnter: () => void }) {
         <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#f4dba8]/45 to-transparent" />
         <div className="absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-moss/10 blur-3xl" />
         <div className="absolute -right-16 bottom-0 h-56 w-56 rounded-full bg-rose/10 blur-3xl" />
+        <SunflowerGarden />
         {Array.from({ length: 8 }, (_, index) => (
           <motion.span
             key={index}
@@ -111,7 +312,7 @@ function FloralOpening({ onEnter }: { onEnter: () => void }) {
           <span className="block">Hey,</span>
           <span className="block">{apology.herName}</span>
         </p>
-        <h1 className="mx-auto mt-5 max-w-md text-balance font-serif text-[1.55rem] font-semibold leading-tight text-cocoa sm:text-4xl md:text-5xl">
+        <h1 className="mx-auto mt-5 w-full max-w-[20rem] text-balance font-serif text-[1.55rem] font-semibold leading-tight text-cocoa sm:max-w-md sm:text-4xl md:text-5xl">
           {apology.opening.line}
         </h1>
         <button
@@ -170,7 +371,7 @@ function AmbientMusic({
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border border-white/55 bg-ivory/85 px-2 py-2 shadow-soft backdrop-blur-md transition duration-300 ${
+      className={`glass-surface fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full px-2 py-2 transition duration-300 ${
         visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
       }`}
     >
@@ -244,7 +445,7 @@ function MemoryLightbox({
             type="button"
             aria-label="Close photo viewer"
             onClick={() => setIndex(null)}
-            className="focus-ring absolute right-4 top-4 rounded-full bg-ivory p-3 text-burgundy shadow-soft"
+            className="focus-ring glass-surface absolute right-4 top-4 rounded-full p-3 text-burgundy"
           >
             <X className="h-5 w-5" />
           </button>
@@ -252,7 +453,7 @@ function MemoryLightbox({
             type="button"
             aria-label="Previous photo"
             onClick={() => setIndex((index! - 1 + apology.memories.length) % apology.memories.length)}
-            className="focus-ring absolute left-3 top-1/2 rounded-full bg-ivory/90 p-3 text-burgundy shadow-soft md:left-8"
+            className="focus-ring glass-surface absolute left-3 top-1/2 rounded-full p-3 text-burgundy md:left-8"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -264,7 +465,7 @@ function MemoryLightbox({
             exit={{ opacity: 0, scale: 0.98 }}
             transition={softTransition}
           >
-            <div className="relative mx-auto aspect-[4/5] max-h-[78vh] overflow-hidden rounded-[2rem] bg-parchment shadow-photo md:aspect-[16/10]">
+            <div className="glass-panel image-float image-float-slow relative mx-auto aspect-[4/5] max-h-[78vh] overflow-hidden rounded-[2rem] p-2 md:aspect-[16/10]">
               <PhotoImage src={active.src} alt={active.alt} />
             </div>
             <figcaption className="mt-4 text-center font-script text-4xl text-ivory">{active.caption}</figcaption>
@@ -273,7 +474,7 @@ function MemoryLightbox({
             type="button"
             aria-label="Next photo"
             onClick={() => setIndex((index! + 1) % apology.memories.length)}
-            className="focus-ring absolute right-3 top-1/2 rounded-full bg-ivory/90 p-3 text-burgundy shadow-soft md:right-8"
+            className="focus-ring glass-surface absolute right-3 top-1/2 rounded-full p-3 text-burgundy md:right-8"
           >
             <ChevronRight className="h-5 w-5" />
           </button>
@@ -297,7 +498,7 @@ function FinalMemoryModal({ open, onClose }: { open: boolean; onClose: () => voi
           exit={{ opacity: 0 }}
         >
           <motion.div
-            className="relative w-full max-w-2xl overflow-hidden rounded-[2rem] bg-ivory p-4 shadow-photo md:p-5"
+            className="glass-surface relative w-full max-w-2xl overflow-hidden rounded-[2rem] p-4 md:p-5"
             initial={{ opacity: 0, y: 28, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -307,11 +508,11 @@ function FinalMemoryModal({ open, onClose }: { open: boolean; onClose: () => voi
               type="button"
               aria-label="Close memory"
               onClick={onClose}
-              className="focus-ring absolute right-6 top-6 z-10 rounded-full bg-ivory/90 p-2 text-burgundy shadow-soft"
+              className="focus-ring glass-surface absolute right-6 top-6 z-10 rounded-full p-2 text-burgundy"
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[1.5rem] bg-parchment md:aspect-[5/3]">
+            <div className="glass-panel image-float image-float-delay relative aspect-[4/5] overflow-hidden rounded-[1.5rem] md:aspect-[5/3]">
               <PhotoImage src={apology.finalImage} alt="One more meaningful memory" />
             </div>
             <p className="px-2 py-6 text-center font-serif text-3xl leading-tight text-burgundy md:text-4xl">
@@ -409,20 +610,22 @@ function FinalQuestionSection({
       <SunflowerBloom show={choice === "yes"} />
       <div className="relative z-10 mx-auto flex min-h-[78vh] max-w-5xl flex-col items-center justify-center text-center">
         <motion.div
-          className="relative mb-8 h-64 w-64 overflow-hidden rounded-[45%_55%_50%_50%/55%_45%_55%_45%] border-[10px] border-ivory/75 bg-parchment shadow-photo md:h-80 md:w-80"
+          className="relative mb-8 h-64 w-64 md:h-80 md:w-80"
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true, amount: 0.3 }}
           transition={softTransition}
         >
-          <PhotoImage src={apology.finalImage} alt="A meaningful photograph together" />
+          <div className="glass-panel image-float image-float-reverse relative h-full w-full overflow-hidden rounded-[45%_55%_50%_50%/55%_45%_55%_45%] p-3">
+            <PhotoImage src={apology.finalImage} alt="A meaningful photograph together" />
+          </div>
         </motion.div>
 
         <AnimatePresence mode="wait">
           {choice === "yes" ? (
             <motion.div
               key="yes"
-              className="max-w-3xl rounded-[1.5rem] bg-ivory/78 p-7 shadow-soft backdrop-blur-md md:p-10"
+              className="glass-surface max-w-3xl rounded-[1.5rem] p-7 md:p-10"
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...softTransition, delay: reducedMotion ? 0 : 1.7 }}
@@ -455,7 +658,7 @@ function FinalQuestionSection({
               </h2>
               <div aria-hidden="true" className="mx-auto mt-7 h-px w-48 bg-gradient-to-r from-transparent via-rose/70 to-transparent" />
               <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-cocoa/78 md:text-xl">{apology.final.reassurance}</p>
-              <div className="relative mx-auto mt-10 flex min-h-32 max-w-2xl flex-col items-center justify-center gap-4 rounded-[1.5rem] border border-white/45 bg-ivory/35 p-5 backdrop-blur sm:flex-row sm:gap-5">
+              <div className="glass-surface relative mx-auto mt-10 flex min-h-32 max-w-2xl flex-col items-center justify-center gap-4 rounded-[1.5rem] p-5 sm:flex-row sm:gap-5">
                 <button
                   type="button"
                   disabled={disabled}
@@ -545,6 +748,10 @@ export default function RomanticApology() {
           />
         ))}
       </div>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.22),transparent_28%,rgba(255,255,255,0.12)_52%,transparent_72%),radial-gradient(circle_at_35%_28%,rgba(255,255,255,0.24),transparent_24%)]"
+      />
 
       <AnimatePresence>
         {!opened ? <FloralOpening onEnter={enter} /> : null}
@@ -552,7 +759,7 @@ export default function RomanticApology() {
 
       <AmbientMusic visible={opened} startRef={startMusicRef} />
 
-      <section id="hero" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-ivory via-[#fff3df] to-[#f3d4ad] text-cocoa">
+      <section id="hero" className="relative min-h-screen overflow-hidden bg-gradient-to-br from-ivory/70 via-[#fff3df]/60 to-[#f3d4ad]/60 text-cocoa">
         <motion.div
           aria-hidden="true"
           className="absolute inset-0 opacity-70"
@@ -579,14 +786,16 @@ export default function RomanticApology() {
             </p>
           </motion.div>
           <motion.div
-            className="relative mx-auto aspect-[3/4] w-full max-w-[500px] overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/45 p-3 shadow-photo backdrop-blur-sm md:max-w-[560px]"
+            className="relative mx-auto aspect-[3/4] w-full max-w-[500px] md:max-w-[560px]"
             initial={{ opacity: 0, scale: 0.96, y: 24 }}
             whileInView={{ opacity: 1, scale: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ ...softTransition, delay: 0.12 }}
           >
-            <div className="relative h-full overflow-hidden rounded-[1.35rem] bg-parchment">
-              <PhotoImage src={apology.heroImage} alt="A favourite photograph together" priority />
+            <div className="glass-panel image-float relative h-full overflow-hidden rounded-[1.75rem] p-3">
+              <div className="relative h-full overflow-hidden rounded-[1.35rem] bg-white/20">
+                <PhotoImage src={apology.heroImage} alt="A favourite photograph together" priority />
+              </div>
             </div>
           </motion.div>
         </div>
@@ -611,13 +820,13 @@ export default function RomanticApology() {
         </div>
       </section>
 
-      <section className="relative bg-ivory px-5 py-24 md:px-10 md:py-32">
+      <section className="relative bg-white/24 px-5 py-24 backdrop-blur-sm md:px-10 md:py-32">
         <SectionTitle eyebrow="What I understand now" title="The part I needed to sit with." />
         <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-3">
           {apology.understandings.map((item, index) => (
             <motion.article
               key={item.title}
-              className="rounded-lg border border-burgundy/10 bg-white/58 p-7 shadow-soft backdrop-blur"
+              className="glass-surface rounded-lg p-7"
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.35 }}
@@ -639,27 +848,31 @@ export default function RomanticApology() {
             const wide = memory.variant === "wide";
             const tall = memory.variant === "tall";
             return (
-              <motion.button
-                type="button"
+              <motion.div
                 key={memory.src}
-                onClick={() => setLightboxIndex(index)}
-                aria-label={`Open photo: ${memory.caption}`}
-                className={`focus-ring group relative overflow-hidden rounded-[1.1rem] border border-burgundy/10 bg-white p-3 text-left shadow-photo transition duration-500 hover:-translate-y-1 ${
-                  wide ? "md:col-span-2" : ""
-                } ${tall ? "md:row-span-2" : ""}`}
+                className={`${wide ? "md:col-span-2" : ""} ${tall ? "md:row-span-2" : ""}`}
                 initial={{ opacity: 0, y: 34, rotate: 0 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, amount: 0.25 }}
                 transition={{ ...softTransition, delay: index * 0.06 }}
               >
-                <div className="relative h-full overflow-hidden rounded-xl bg-parchment transition duration-500 group-hover:scale-[1.015]">
-                  <PhotoImage src={memory.src} alt={memory.alt} />
-                  <div className="absolute inset-0 bg-gradient-to-t from-cocoa/38 via-transparent to-transparent opacity-80" />
-                </div>
-                <p className="absolute bottom-5 left-6 right-6 font-script text-3xl leading-tight text-ivory drop-shadow sm:text-4xl">
-                  {memory.caption}
-                </p>
-              </motion.button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(index)}
+                  aria-label={`Open photo: ${memory.caption}`}
+                  className={`focus-ring glass-panel image-float relative h-full w-full overflow-hidden rounded-[1.1rem] p-3 text-left transition duration-500 ${
+                    index % 2 ? "image-float-delay image-float-reverse" : "image-float-slow"
+                  }`}
+                >
+                  <div className="relative h-full overflow-hidden rounded-xl bg-white/20">
+                    <PhotoImage src={memory.src} alt={memory.alt} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-cocoa/38 via-transparent to-transparent opacity-80" />
+                  </div>
+                  <p className="absolute bottom-5 left-6 right-6 font-script text-3xl leading-tight text-ivory drop-shadow sm:text-4xl">
+                    {memory.caption}
+                  </p>
+                </button>
+              </motion.div>
             );
           })}
         </div>
@@ -673,13 +886,13 @@ export default function RomanticApology() {
         />
       </section>
 
-      <section className="relative bg-parchment/70 px-5 py-24 md:px-10 md:py-32">
+      <section className="relative bg-white/20 px-5 py-24 backdrop-blur-sm md:px-10 md:py-32">
         <SectionTitle title="Things I should say more often" />
         <div className="mx-auto mt-12 grid max-w-5xl gap-4 md:grid-cols-2">
           {apology.appreciations.map((message, index) => (
             <motion.div
               key={message}
-              className="rounded-lg border border-white/70 bg-ivory/72 p-6 shadow-soft"
+              className="glass-surface rounded-lg p-6"
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.4 }}
@@ -693,7 +906,7 @@ export default function RomanticApology() {
       </section>
 
       <section id="letter" className="relative px-5 py-24 md:px-10 md:py-32">
-        <div className="paper-texture mx-auto max-w-4xl overflow-hidden rounded-[1.75rem] border border-burgundy/10 bg-[#fffaf1] p-7 shadow-photo md:p-14">
+        <div className="paper-texture glass-surface mx-auto max-w-4xl overflow-hidden rounded-[1.75rem] p-7 md:p-14">
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.22 }} transition={{ staggerChildren: 0.08 }}>
             <motion.p variants={fadeUp} className="font-script text-6xl text-rose md:text-7xl">
               {apology.letter.greeting}
@@ -713,13 +926,13 @@ export default function RomanticApology() {
         </div>
       </section>
 
-      <section className="relative bg-ivory px-5 py-24 md:px-10 md:py-32">
+      <section className="relative bg-white/24 px-5 py-24 backdrop-blur-sm md:px-10 md:py-32">
         <SectionTitle title="Not just promises, changes." />
         <div className="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-2">
           {apology.promises.map((promise, index) => (
             <motion.div
               key={promise}
-              className="flex gap-4 rounded-lg border border-burgundy/10 bg-white/62 p-6 shadow-soft"
+              className="glass-surface flex gap-4 rounded-lg p-6"
               initial="hidden"
               whileInView="visible"
               viewport={{ once: true, amount: 0.35 }}
